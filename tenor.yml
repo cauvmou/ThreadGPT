@@ -1,0 +1,222 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Tenor Search API
+  description: Tenor API allows developers to integrate GIF search functionalities into their applications
+  contact:
+    name: Tenor Support
+    url: https://tenor.com/contact
+servers:
+  - url: https://tenor.googleapis.com/v2
+tags:
+  -
+    name: search
+  - 
+    name: posts
+paths:
+  /search:
+    get:
+      summary: Search for GIFs and stickers
+      description: Returns an array of Response Objects that contains the most relevant content for the requested search term
+      operationId: search
+      tags: 
+        - search
+      parameters:
+        - name: key
+          in: query
+          description: API key for privileged access
+          required: true
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: A search string
+          required: true
+          schema:
+            type: string
+        - name: client_key
+          in: query
+          description: A client-specified string that represents the integration
+          required: false
+          schema:
+            type: string
+        - name: searchfilter
+          in: query
+          description: Comma-separated list of non-GIF content types to filter the Response Objects
+          required: false
+          schema:
+            type: string
+        - name: country
+          in: query
+          description: Specify the country of origin for the request
+          required: false
+          schema:
+            type: string
+        - name: locale
+          in: query
+          description: Specify the default language to interpret the search string
+          required: false
+          schema:
+            type: string
+        - name: contentfilter
+          in: query
+          description: Specify the content safety filter level
+          required: false
+          schema:
+            type: string
+            enum: [off, low, medium, high]
+        - name: media_filter
+          in: query
+          description: Comma-separated list of GIF formats to filter the Response Objects
+          required: false
+          schema:
+            type: string
+        - name: ar_range
+          in: query
+          description: Filter the Response Objects to only include GIFs with aspect ratios that fit within the selected range
+          required: false
+          schema:
+            type: string
+        - name: random
+          in: query
+          description: Specify whether to randomly order the response
+          required: false
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          description: Fetch up to the specified number of results
+          required: false
+          schema:
+            type: integer
+        - name: pos
+          in: query
+          description: Retrieve results that start at the position "value"
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  next:
+                    type: string
+                    description: A position identifier to use with the next API query
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RESPONSE_OBJECT'
+  /posts:
+    get:
+      summary: Get Response Objects by ID
+      description: Returns an array of Response Objects that contains the requested content specified by the ids
+      operationId: posts
+      tags: 
+        - posts
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+          description: API key for privileged API access
+        - name: ids
+          in: query
+          required: true
+          schema:
+            type: string
+          description: A comma-separated list of Response Object IDs. The maximum value is 50.
+        - name: client_key
+          in: query
+          required: false
+          schema:
+            type: string
+          description: A client-specified string that represents the integration. A client key lets you use the same API key across different integrations but still be able to differentiate them. For an app integration, use the same client_key value for all API calls. Any client custom behavior is triggered by the pairing of the key and client_key parameters.
+        - name: media_filter
+          in: query
+          required: false
+          schema:
+            type: string
+            description: "Comma-separated list of GIF formats to filter the Response Objects. By default, media_filter returns all formats for each Response Object. Example: media_filter=gif,tinygif,mp4,tinymp4"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RESPONSE_OBJECT'
+components:
+  schemas:
+    RESPONSE_OBJECT:
+      type: object
+      properties:
+        created:
+          type: number
+          format: float
+          description: A Unix timestamp that represents when this post was created.
+        hasaudio:
+          type: boolean
+          description: Returns true if this post contains audio.
+        id:
+          type: string
+          description: Tenor result identifier
+        media_formats:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/MEDIA_OBJECT"
+          description: A dictionary with a content format as the key and a Media Object as the value.
+        tags:
+          type: array
+          items:
+            type: string
+          description: An array of tags for the post
+        title:
+          type: string
+          description: The title of the post
+        content_description:
+          type: string
+          description: A textual description of the content. We recommend that you use content_description for user accessibility features.
+        itemurl:
+          type: string
+          description: The full URL to view the post on tenor.com.
+        hascaption:
+          type: boolean
+          description: Returns true if this post contains captions.
+        flags:
+          type: string
+          description: Comma-separated list to signify whether the content is a sticker or static image, has audio, or is any combination of these. If sticker and static aren't present, then the content is a GIF. A blank flags field signifies a GIF without audio.
+        bg_color:
+          type: string
+          description: The most common background pixel color of the content.
+        url:
+          type: string
+          description: A short URL to view the post on tenor.com.
+    MEDIA_OBJECT:
+      type: object
+      properties:
+        url:
+          type: string
+          description: A URL to the media source.
+        dims:
+          type: array
+          items:
+            type: integer
+          minItems: 2
+          maxItems: 2
+          description: Width and height of the media in pixels.
+        duration:
+          type: number
+          format: float
+          description: Represents the time in seconds for one loop of the content. If the content is static, the duration is set to 0.
+        size:
+          type: integer
+          description: Size of the file in bytes.
