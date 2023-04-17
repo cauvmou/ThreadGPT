@@ -1,3 +1,4 @@
+from typing import Literal
 from dotenv import load_dotenv
 load_dotenv();
 import os
@@ -18,6 +19,7 @@ def setup_messages():
     }]
 
 messages = setup_messages();
+user_text = messages
 message_lock = False
 
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
@@ -103,12 +105,24 @@ async def on_reaction_add(reaction, user):
     
     await openai_query(reaction.message.channel)
 
-@client.tree.command(name="reset", description="Reset the conversation")
-async def reset_command(interaction: discord.Interaction):
-    global messages
-    messages = setup_messages();
+@client.tree.command(name="reset", description="Reset the conversation.")
+@app_commands.describe(state="System text")
+async def reset_command(interaction: discord.Interaction, state: Literal["trunk", "user"]):
+    global messages, user_text
+    if state == "trunk":
+        messages = setup_messages();
+    elif state == "user":
+        messages = user_text;
     await interaction.response.send_message("Conversation reset")
     await initial_message(client)
 
+@client.tree.command(name="system", description="Set the system text")
+@app_commands.describe(text="The system text")
+async def system_command(interaction: discord.Interaction, text: str):
+    global messages, user_text
+    user_text[0]["content"] = text
+    messages = user_text
+    await interaction.response.send_message("Reset with new system text.")
+    await initial_message(client)
 
 client.run(os.getenv("DISCORD_TOKEN"))
