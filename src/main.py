@@ -9,23 +9,23 @@ from discord import app_commands
 import openai
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
+TENOR_KEY = os.getenv("TENOR_KEY")
+MY_GUILD = discord.Object(os.getenv("GUILD_ID"))
+MEMORY_LENGTH = 15
 
-def setup_messages():
+
+def setup_system():
     system = "Your are a discord bot, that is chatting with multiple people and you are trying to learn from the conversations."
     with open("system.txt", "r") as f:
         system = f.read()
-    return [{
+    return {
         "role": "system", "content": system
-    }]
+    }
 
-messages = setup_messages();
-user_text = messages
+messages = [];
+system_text = setup_system();
 message_lock = False
-
-CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
-TENOR_KEY = os.getenv("TENOR_KEY")
-
-MY_GUILD = discord.Object(os.getenv("GUILD_ID"))
 
 class MyClient(discord.Client):
     def __init__(self):
@@ -40,17 +40,22 @@ class MyClient(discord.Client):
 client = MyClient()
 
 async def openai_query(channel):
-    global message_lock
+    global message_lock, system_text
     message_lock = True
     async with channel.typing():
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=messages,
+            messages=[system_text] + messages[-MEMORY_LENGTH:],
             n=1,
         )
         messages.append(response["choices"][0]["message"])
     
-    text = messages[-1]["content"]
+    text = tenor(messages[-1]["content"])
+    text = dalle(text)
+    await channel.send(text)
+    message_lock = False
+
+def tenor(text: str) -> str:
     gif_regex = r"\[GIF: ([^\]]+)\]";
     gifs = re.findall(gif_regex, text)
     for gif in gifs:
@@ -62,15 +67,28 @@ async def openai_query(channel):
                 text = text.replace(f"[GIF: {gif}]", gifs[0]["url"] + " **(via Tenor)**")
             else:
                 text = text.replace(f"[GIF: {gif}]", "https://media.tenor.com/DiUjye_MGoAAAAAM/not-found-404error.gif")
-    await channel.send(text)
-    message_lock = False
+    return text
+
+def dalle(text: str) -> str:
+    image_regex = r"\[DALL-E: ([^\]]+)\]";
+    images = re.findall(image_regex, text)
+    for image in images:
+        print("Generating image: " + image)
+        response = openai.Image.create(
+          prompt=image,
+          n=1,
+          size="512x512"
+        )
+        text = text.replace(f"[DALL-E: {image}]", response["data"][0]["url"] + " **(via DALL-E)**")
+    return text
 
 async def initial_message(client: discord.Client):
-    text = f"Write a hello message to the channel."
+    global system_text
+    text = f"Introduce yourself to the users."
     messages.append({"role": "user", "content": text})
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
-        messages=messages,
+        messages=[system_text] + messages[-MEMORY_LENGTH:],
     )
     text = response["choices"][0]["message"]
     messages.append(text)
@@ -108,21 +126,33 @@ async def on_reaction_add(reaction, user):
 @client.tree.command(name="reset", description="Reset the conversation.")
 @app_commands.describe(state="System text")
 async def reset_command(interaction: discord.Interaction, state: Literal["trunk", "user"]):
-    global messages, user_text
+    global messages, system_text
     if state == "trunk":
-        messages = setup_messages();
-    elif state == "user":
-        messages = user_text;
+        system_text = setup_system();
+    messages = [];
     await interaction.response.send_message("Conversation reset")
     await initial_message(client)
 
-@client.tree.command(name="system", description="Set the system text")
+@client.tree.command(name="system", description="Set the system text.")
 @app_commands.describe(text="The system text")
 async def system_command(interaction: discord.Interaction, text: str):
-    global messages, user_text
-    user_text[0]["content"] = text
-    messages = user_text
+    global system_text
+    system_text["content"] = text
     await interaction.response.send_message("Reset with new system text.")
     await initial_message(client)
+    
+@client.tree.command(name="clear", description="Clears the chat and the conversation.")
+async def clear_command(interaction: discord.Interaction):
+    global messages
+    messages = []
+    await interaction.response.send_message("Conversation cleared")
+    await client.get_channel(CHANNEL_ID).purge()
+    await initial_message(client)
+
+@client.tree.command(name="reload", description="Reloads system.txt from disk.")
+async def hot_reload(interaction: discord.Interaction):
+    global system_text
+    system_text = setup_system();
+    await interaction.response.send_message("Reloaded system.txt")
 
 client.run(os.getenv("DISCORD_TOKEN"))
