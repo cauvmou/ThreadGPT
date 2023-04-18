@@ -154,5 +154,14 @@ async def hot_reload(interaction: discord.Interaction):
     global system_text
     system_text = setup_system();
     await interaction.response.send_message("Reloaded system.txt")
+    
+@client.tree.command(name="history", description="Shows the history of the conversation.")
+async def history_command(interaction: discord.Interaction):
+    global messages
+    embed = discord.Embed(title="History", description="This is the memorized history of the conversation.", colour=discord.Colour.from_rgb(255, 0, 0))
+    memory = messages[-MEMORY_LENGTH:]
+    for message in memory:
+        embed.add_field(name=message["role"], value=message["content"], inline=False)
+    await interaction.response.send_message(embed=embed)
 
 client.run(os.getenv("DISCORD_TOKEN"))
