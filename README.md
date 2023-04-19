@@ -14,6 +14,8 @@ If everything went fine, just run `src/main.py`.
 
 ## Info
 
+The current `system.txt` is very questionable and should be changed.
+
 If you want image generation and gif querying you have to include something along the lines of:
 ```
 If you would like to respond with a gif insert the following exactly:

@@ -12,13 +12,14 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 TENOR_KEY = os.getenv("TENOR_KEY")
 MY_GUILD = discord.Object(os.getenv("GUILD_ID"))
-MEMORY_LENGTH = 15
+MEMORY_LENGTH = 150
 
 
 def setup_system():
     system = "Your are a discord bot, that is chatting with multiple people and you are trying to learn from the conversations."
     with open("system.txt", "r") as f:
         system = f.read()
+        f.close()
     return {
         "role": "system", "content": system
     }
@@ -84,7 +85,7 @@ def dalle(text: str) -> str:
 
 async def initial_message(client: discord.Client):
     global system_text
-    text = f"Introduce yourself to the users."
+    text = f"Who are you?"
     messages.append({"role": "user", "content": text})
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -106,7 +107,7 @@ async def on_message(message):
     elif (message_lock):
         await message.delete()
         return
-    text = f"Message from {message.author} contains: {message.content}"
+    text = f"{message.author.name}: {message.content}"
     messages.append({"role": "user", "content": text})
     
     await openai_query(message.channel)
@@ -118,7 +119,7 @@ async def on_reaction_add(reaction, user):
     elif (message_lock):
         reaction.remove(user)
         return
-    text = f"Reaction from {user} contains: {reaction.emoji} on message: {reaction.message.content}"
+    text = f"{user.name} reacted with: {reaction.emoji} on message: {reaction.message.content}"
     messages.append({"role": "user", "content": text})
     
     await openai_query(reaction.message.channel)
